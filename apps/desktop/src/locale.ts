@@ -1,4 +1,5 @@
 /** Typed shell copy for every shipped language owned by the Electron shell. */
+import { applyYunsunBrand, yunsunBrandEnabled } from './yunsun-brand.ts'
 
 export const en = {
   cliCommandMenu: 'Manage dsh Command…',
@@ -1546,6 +1547,8 @@ export const pt = {
 } satisfies DesktopMessages
 
 const dictionaries = { en, zh, ja, es, fr, de, ru, pt }
+// [yunsun] P1 品牌：所有字典里的上游产品名统一换成云隼智教。
+if (yunsunBrandEnabled()) for (const messages of Object.values(dictionaries)) applyYunsunBrand(messages)
 
 /** Locale payload exposed to the Desktop-owned renderer. */
 export interface DesktopLocale {

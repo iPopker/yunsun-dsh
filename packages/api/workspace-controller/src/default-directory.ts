@@ -10,6 +10,18 @@ interface DocumentsDirectoryInternals {
   readonly platform?: NodeJS.Platform
   readonly home?: string
   readonly run?: NativeCommandRunner
+  readonly env?: Readonly<Record<string, string | undefined>>
+}
+
+/**
+ * [yunsun] P1 品牌：默认工作区放在「文档/云隼智教」下，而不是「文档/deepseek-harness」。
+ * 只有 DSH_PRODUCT_BRAND=yunsun 才改，不设时保持上游目录名，上游测试不变。
+ * 见 edu-agent 的 docs/decisions/0030-dsh-thin-fork.md。
+ * @param env - 环境变量表，测试可替换。
+ * @returns Documents 下的一级目录名。
+ */
+export function defaultWorkspaceParentName(env: Readonly<Record<string, string | undefined>> = process.env): string {
+  return env.DSH_PRODUCT_BRAND === 'yunsun' ? '云隼智教' : 'deepseek-harness'
 }
 
 /**
@@ -74,5 +86,5 @@ export async function defaultWorkspaceDirectory(
   }
   directory = validateDocumentsDirectory(directory, platform)
   signal.throwIfAborted()
-  return paths.join(directory, 'deepseek-harness', DEFAULT_WORKSPACE_DIRECTORY)
+  return paths.join(directory, defaultWorkspaceParentName(internals.env), DEFAULT_WORKSPACE_DIRECTORY)
 }
