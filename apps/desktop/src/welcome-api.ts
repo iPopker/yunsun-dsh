@@ -3,6 +3,7 @@
 import type { AccountView, SignInAttemptId } from '@deepseek-ai/dsh-deepseek-account/types'
 import type { ProductEventMap } from '@deepseek-ai/dsh-client-product-analytics/types'
 import type { DesktopLocale } from './locale.ts'
+import { yunsunBrandEnabled } from './yunsun-brand.ts'
 
 /** Private native welcome channels, installed only while its window exists. */
 export const WELCOME_IPC = {
@@ -70,6 +71,12 @@ export interface WelcomeAuthentication {
  * @param authentication - current account and independently stored API-key facts.
  * @returns true only when neither authentication route is configured.
  */
-export function needsWelcome(authentication: WelcomeAuthentication): boolean {
+export function needsWelcome(
+  authentication: WelcomeAuthentication,
+  env?: Readonly<Record<string, string | undefined>>,
+): boolean {
+  // [yunsun] P3 云隼智教不使用原版 Welcome（DeepSeek 账号登录和 API Key 入口）：登录界面由插件挂在
+  // settings.onboarding。只在 DSH_PRODUCT_BRAND=yunsun 时恒为 false，原版逻辑保留，不设时上游测试不变。
+  if (yunsunBrandEnabled(env)) return false
   return !authentication.loggedIn && !authentication.hasApiKey
 }
