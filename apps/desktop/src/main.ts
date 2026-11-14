@@ -1,5 +1,8 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
+// [yunsun] P4：必须最先执行，把打包期标记换成 DSH_PRODUCT_BRAND 等环境变量，之后的模块才能读到。
+import './yunsun-packaged-init.ts'
+
 import { installFileActions } from './file-actions.ts'
 import { configurationFailure, channelSaveFailure, configurationMessage } from './update-configuration.ts'
 import type { DesktopChannelState, DesktopChannelChangeResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'

@@ -160,6 +160,8 @@ export function createElectronBuilderConfig(
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
+      // [yunsun] P4：YUNSUN_RESOURCES_DIR 指向 edu-agent 的 `node packages/dsh-edu/scripts/pack-yunsun-resources.mjs` 产物，原样放进 resources/yunsun。
+      ...(env.YUNSUN_RESOURCES_DIR === undefined ? [] : [{ from: env.YUNSUN_RESOURCES_DIR, to: 'yunsun' }]),
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],
