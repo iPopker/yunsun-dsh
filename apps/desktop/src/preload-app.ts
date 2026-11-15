@@ -110,6 +110,8 @@ if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
   contextBridge.exposeInMainWorld('__DSH_HOST_PATHS__', {
     pathFor: (file: File) => webUtils.getPathForFile(file),
   })
+  // [yunsun] P1：品牌标记，渲染进程据此换首页文案（ui-conversation EmptyHero）。
+  if (process.env.DSH_PRODUCT_BRAND === 'yunsun') contextBridge.exposeInMainWorld('__DSH_PRODUCT_BRAND__', 'yunsun')
   contextBridge.exposeInMainWorld('dshDesktopBoot', {
     ready: () => ipcRenderer.invoke(DESKTOP_IPC.boot) as Promise<unknown>,
     failed: (message: string) => ipcRenderer.invoke(DESKTOP_IPC.bootFailed, message) as Promise<void>,

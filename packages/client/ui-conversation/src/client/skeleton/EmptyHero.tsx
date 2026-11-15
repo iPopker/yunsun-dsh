@@ -125,11 +125,22 @@ function HeroFish({ hovering }: { hovering: boolean }) {
 }
 
 /**
+ * [yunsun] P1 品牌：桌面端 preload 在品牌模式下暴露 `__DSH_PRODUCT_BRAND__ = 'yunsun'`
+ * （开发版取自 DSH_PRODUCT_BRAND，打包版由 yunsun-packaged-init 按 yunsun.json 设置同一变量）。
+ * 浏览器端读不到 process.env，也不能用构建期开关（客户端产物是预构建的）。
+ * @returns whether the renderer runs the Yunsun-branded desktop.
+ */
+function yunsunBrandActive(): boolean {
+  return (globalThis as { __DSH_PRODUCT_BRAND__?: unknown }).__DSH_PRODUCT_BRAND__ === 'yunsun'
+}
+
+/**
  * Render the hero chrome (headline only; no composer, no workspace row).
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
  */
 export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
+  const yunsun = yunsunBrandActive()
   const [hovering, setHovering] = useState(false)
   return (
     <div className={css.root}>
@@ -152,8 +163,8 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
           </span>
           <span className={css.titleGroup}>
             {/* Own element: keeps the headline text addressable apart from the badge. */}
-            <span>{t('hero.headline')}</span>
-            <span className={css.previewBadge}>{t('hero.preview')}</span>
+            <span>{yunsun ? t('hero.yunsunHeadline') : t('hero.headline')}</span>
+            {!yunsun && <span className={css.previewBadge}>{t('hero.preview')}</span>}
           </span>
         </div>
         <div className={css.body}>
