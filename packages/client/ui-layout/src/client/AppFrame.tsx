@@ -258,7 +258,14 @@ export function AppFrame({
   const onRightbarDrag = useCallback((dx: number) => {
     actions.setRightbar(rightbarBase.current - dx)
   }, [actions])
-  const productTitle = process.env.DSH_CLIENT_TITLE ?? t('brand.localBuild')
+  // [yunsun] 品牌：窗口/标签标题也不能露出上游记号。官方构建把 DSH_CLIENT_TITLE 静态烧成
+  // "DeepSeek Harness"，开发构建没有它、回落到 t('brand.localBuild')（"DSH 本地构建"），
+  // 所以品牌模式下直接覆盖成产品名。
+  const yunsunBranded =
+    (globalThis as { __DSH_PRODUCT_BRAND__?: unknown }).__DSH_PRODUCT_BRAND__ === 'yunsun'
+  const productTitle = yunsunBranded
+    ? '云隼智教'
+    : (process.env.DSH_CLIENT_TITLE ?? t('brand.localBuild'))
   // The rendered template lets the grid solve the squeeze natively: the centre
   // declares its protected minimum and the right column bids up to the clamped
   // preference, so a window resize lands in the same layout pass as the frame

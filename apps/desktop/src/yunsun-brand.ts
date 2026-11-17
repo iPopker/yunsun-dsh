@@ -12,6 +12,9 @@ export const YUNSUN_PRODUCT_NAME = '云隼智教'
 
 const UPSTREAM_PRODUCT_NAME = 'DeepSeek Harness'
 
+/** 上游内部代号：端口冲突等提示里会直接出现，界面上不能露出来。 */
+const INTERNAL_CODENAME = 'DSH'
+
 /** 环境变量表；locale.ts 也被渲染进程使用，那里没有 Node 类型，也可能没有 process。 */
 type Env = Readonly<Record<string, string | undefined>>
 
@@ -37,12 +40,16 @@ export function productName(env: Env = currentEnv()): string {
 export function applyYunsunBrand(messages: Record<string, string>): void {
   for (const key of Object.keys(messages)) {
     const text = messages[key]
-    if (text !== undefined && text.includes(UPSTREAM_PRODUCT_NAME)) {
-      messages[key] = text
-        .replaceAll(UPSTREAM_PRODUCT_NAME, YUNSUN_PRODUCT_NAME)
-        // 中文产品名和汉字之间不留空格，例如「退出 DeepSeek Harness」换成「退出云隼智教」。
-        .replaceAll(/(\p{Script=Han}) (?=云隼智教)/gu, '$1')
-        .replaceAll(/(云隼智教) (?=\p{Script=Han})/gu, '$1')
-    }
+    if (text === undefined) continue
+    if (!text.includes(UPSTREAM_PRODUCT_NAME) && !text.includes(INTERNAL_CODENAME)) continue
+    messages[key] = text
+      .replaceAll(UPSTREAM_PRODUCT_NAME, YUNSUN_PRODUCT_NAME)
+      // 端口冲突提示里的内部代号（「另一个 DSH 实例」「dsh web」）也换成产品名。
+      .replaceAll(/dsh web/gu, `${YUNSUN_PRODUCT_NAME}网页版`)
+      .replaceAll(/\bDSH\b/gu, YUNSUN_PRODUCT_NAME)
+      // 中文产品名和汉字之间不留空格，例如「退出 DeepSeek Harness」换成「退出云隼智教」。
+      // 必须放在替换之后：DSH 换成产品名同样要贴合前后汉字。
+      .replaceAll(/(\p{Script=Han}) (?=云隼智教)/gu, '$1')
+      .replaceAll(/(云隼智教) (?=\p{Script=Han})/gu, '$1')
   }
 }

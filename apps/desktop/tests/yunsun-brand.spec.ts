@@ -30,4 +30,18 @@ describe('yunsun brand', () => {
       copy: 'Copy',
     })
   })
+
+  it('换代产品名的同时清掉内部代号 DSH / dsh web', () => {
+    const messages: Record<string, string> = {
+      startupAddressInUse:
+        '有其他正在运行的 DSH（如其他 dsh web、桌面端），无法同时启动，请退出其他正在运行的 DSH 后重启。',
+      env: 'DSH_CLIENT_TITLE is read at build time',
+    }
+    applyYunsunBrand(messages)
+    expect(messages['startupAddressInUse']).toBe(
+      '有其他正在运行的云隼智教（如其他云隼智教网页版、桌面端），无法同时启动，请退出其他正在运行的云隼智教后重启。',
+    )
+    // 环境变量名这类连写标识不能被改。
+    expect(messages['env']).toBe('DSH_CLIENT_TITLE is read at build time')
+  })
 })

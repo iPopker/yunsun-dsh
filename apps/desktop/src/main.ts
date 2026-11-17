@@ -41,7 +41,7 @@ import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopUpdateState } fro
 import { readDeviceInfo } from './device-info.ts'
 import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
 import type { DesktopMessages } from './locale.ts'
-import { productName } from './yunsun-brand.ts'
+import { productName, yunsunBrandEnabled } from './yunsun-brand.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -272,6 +272,8 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     minWidth: 520,
     minHeight: 600,
     show,
+    // [yunsun] 品牌：页面挂载前窗口标题先用产品名，避免闪出上游的 DSH/DeepSeek Harness 标题。
+    ...(yunsunBrandEnabled() ? { title: productName() } : {}),
     ...(process.platform === 'win32' && primary ? {
       backgroundColor: chromeFallbackFill(),
       titleBarStyle: 'hidden' as const,
@@ -1213,7 +1215,8 @@ async function main(): Promise<void> {
       : { label: currentDesktopLocale().messages.aboutMenu, role: 'about' },
     { type: 'separator' },
     { label: currentDesktopLocale().messages.checkUpdatesMenu, click: () => { void openUpdatePrompt(true) } },
-    ...process.platform === 'darwin' || process.platform === 'win32'
+    // [yunsun] 品牌模式不暴露「管理 dsh 命令…」：老师用不到 dsh 命令行，菜单里只留产品名。
+    ...(process.platform === 'darwin' || process.platform === 'win32') && !yunsunBrandEnabled()
       ? [{ label: currentDesktopLocale().messages.cliCommandMenu, click: () => { void commandManager.show() } }] : [],
     { type: 'separator' },
     ...development ? [

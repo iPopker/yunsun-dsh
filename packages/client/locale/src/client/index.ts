@@ -28,6 +28,8 @@ import {
 import type { LanguageRowInjected } from './LanguageRow.tsx'
 import { LanguageRow } from './LanguageRow.tsx'
 import { createLanguageRowStore } from './settings-store.ts'
+// [yunsun] 品牌：文案出口统一替换上游产品名（见 yunsun-brand.ts）。
+import { yunsunBrandText } from './yunsun-brand.ts'
 
 export type { LanguageRowComponentProps, LanguageRowInjected } from './LanguageRow.tsx'
 export type { LanguageOptionRow, LanguageRowState } from './settings-store.ts'
@@ -472,9 +474,12 @@ export class LocaleRuntime {
     const template = this.lookup(ns, key, chain)
       ?? (ns !== COMMON_NS ? this.lookup(COMMON_NS, key, chain) : undefined)
       ?? key
-    if (!params) return template
-    return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-      name in params ? String(params[name]) : match)
+    const text = params === undefined
+      ? template
+      : template.replace(/\{(\w+)\}/g, (match, name: string) =>
+        name in params ? String(params[name]) : match)
+    // [yunsun] 所有客户端字典都从这里出文案，品牌模式下统一把上游产品名换成云隼智教。
+    return yunsunBrandText(text)
   }
 
   private lookup(ns: string, key: string, chain: readonly LocaleId[]): string | undefined {

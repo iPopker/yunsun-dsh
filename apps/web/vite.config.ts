@@ -12,7 +12,9 @@ const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url)
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `dsh web` and the rebuild watchers together.'
-const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
+// [yunsun] 品牌：占位标题和默认标题都用产品名，界面上不出现 DSH / DeepSeek Harness。
+const PLACEHOLDER_CLIENT_TITLE = '云隼智教'
+const DEFAULT_CLIENT_TITLE = '云隼智教'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
@@ -25,7 +27,7 @@ function clientDocumentTitle(): Plugin {
   return {
     name: 'dsh-client-document-title',
     transformIndexHtml(html) {
-      return html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      return html.replace(`<title>${PLACEHOLDER_CLIENT_TITLE}</title>`, `<title>${title}</title>`)
     },
   }
 }
