@@ -10,7 +10,8 @@ const VERSION_PATTERN = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9
 /**
  * Resolve the Yunsun branded packaging settings.
  * YUNSUN_DESKTOP_VERSION overrides the packaged application version (for example 3.0.0) while the
- * bundled runtime keeps verifying against the upstream product version in package.json.
+ * bundled runtime keeps verifying against the upstream product version in package.json. It takes
+ * precedence over DSH_DESKTOP_BUILD_VERSION, which package-target.ts always sets to the upstream build version.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
  * @returns {{ productName: string, appId: string, version: string | undefined, artifactPrefix: string, icons: { macos: string, windows: string, tray: string } } | undefined}
  *   Branded settings, or undefined when YUNSUN_DESKTOP_PRODUCT_NAME is unset or blank (upstream build).
@@ -23,9 +24,6 @@ export function resolveYunsunPackaging(env) {
   const version = env.YUNSUN_DESKTOP_VERSION?.trim() || undefined
   if (version !== undefined && !VERSION_PATTERN.test(version)) {
     throw new Error(`yunsun packaging: YUNSUN_DESKTOP_VERSION must be a semver version such as 3.0.0, got ${JSON.stringify(version)}`)
-  }
-  if (version !== undefined && env.DSH_DESKTOP_BUILD_VERSION?.trim()) {
-    throw new Error('yunsun packaging: set YUNSUN_DESKTOP_VERSION or DSH_DESKTOP_BUILD_VERSION, not both')
   }
   return {
     productName,

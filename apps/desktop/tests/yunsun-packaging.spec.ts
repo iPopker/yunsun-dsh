@@ -27,7 +27,7 @@ describe('resolveYunsunPackaging', () => {
     }
   })
 
-  it('YUNSUN_DESKTOP_VERSION：不设为 undefined，接受 semver，拒绝非 semver 和与 DSH_DESKTOP_BUILD_VERSION 同时设置', () => {
+  it('YUNSUN_DESKTOP_VERSION：不设为 undefined，接受 semver，拒绝非 semver', () => {
     expect(resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X' })?.version).toBeUndefined()
     expect(resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: ' 3.0.0 ' })?.version).toBe('3.0.0')
     expect(resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: '3.0.1-beta.2' })?.version).toBe('3.0.1-beta.2')
@@ -35,8 +35,6 @@ describe('resolveYunsunPackaging', () => {
       expect(() => resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: version }))
         .toThrow('yunsun packaging: YUNSUN_DESKTOP_VERSION must be a semver version')
     }
-    expect(() => resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: '3.0.0', DSH_DESKTOP_BUILD_VERSION: '0.2.2-rc.3.20261121.1' }))
-      .toThrow('yunsun packaging: set YUNSUN_DESKTOP_VERSION or DSH_DESKTOP_BUILD_VERSION, not both')
   })
 })
 
@@ -83,9 +81,12 @@ describe('createElectronBuilderConfig', () => {
     expect(config.extraMetadata.version).toBeUndefined()
   })
 
-  it('品牌环境设置 YUNSUN_DESKTOP_VERSION 时覆盖打包后的应用版本', () => {
+  it('品牌环境设置 YUNSUN_DESKTOP_VERSION 时覆盖打包后的应用版本，优先于 package-target 写入的 DSH_DESKTOP_BUILD_VERSION', () => {
     const config = createElectronBuilderConfig({ ...base, YUNSUN_DESKTOP_PRODUCT_NAME: '云隼智教', YUNSUN_DESKTOP_VERSION: '3.0.0' }, 'darwin', 'arm64')
     expect(config.extraMetadata.version).toBe('3.0.0')
+    // package-target.ts 总会把 DSH_DESKTOP_BUILD_VERSION 设成上游构建版本，品牌版本仍然生效。
+    const withBuildVersion = createElectronBuilderConfig({ ...base, YUNSUN_DESKTOP_PRODUCT_NAME: '云隼智教', YUNSUN_DESKTOP_VERSION: '3.0.0', DSH_DESKTOP_BUILD_VERSION: '0.2.2-rc.3' }, 'darwin', 'arm64')
+    expect(withBuildVersion.extraMetadata.version).toBe('3.0.0')
   })
 
   it('不设品牌环境变量时保持上游原值', () => {
