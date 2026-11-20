@@ -1,6 +1,6 @@
 // [yunsun] P4 预装 bundle 和打包期配置的测试。
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -8,6 +8,7 @@ import {
   parseYunsunPackagedConfig,
   preinstallYunsunBundle,
   readYunsunPackagedResources,
+  YUNSUN_DSH_HOME_DIR_NAME,
   YUNSUN_PREINSTALL_STATE_FILE,
   type YunsunPackagedResources,
 } from '../src/yunsun-preinstall.ts'
@@ -65,12 +66,24 @@ describe('yunsun packaged config', () => {
     expect(env).toEqual({
       YUNSUN_SERVER_URL: 'http://localhost:3000',
       DSH_PRODUCT_BRAND: 'yunsun',
+      DSH_HOME: join(homedir(), YUNSUN_DSH_HOME_DIR_NAME),
       DSH_TELEMETRY_DISABLED: '1',
       DSH_TELEMETRY_MODE: 'DISABLED',
     })
     const fresh: Record<string, string | undefined> = {}
     applyYunsunPackagedEnv(fresh, resources)
     expect(fresh.YUNSUN_SERVER_URL).toBe('https://yunsun.example.test')
+  })
+
+  it('已设 DSH_HOME 时不覆盖；默认落在 home 下的 .yunsun-edu', () => {
+    const resources = readYunsunPackagedResources(resourcesDir(temporaryRoot())) as YunsunPackagedResources
+    const custom: Record<string, string | undefined> = { DSH_HOME: '/custom/dsh-home' }
+    applyYunsunPackagedEnv(custom, resources)
+    expect(custom.DSH_HOME).toBe('/custom/dsh-home')
+    const fresh: Record<string, string | undefined> = {}
+    applyYunsunPackagedEnv(fresh, resources)
+    expect(YUNSUN_DSH_HOME_DIR_NAME).toBe('.yunsun-edu')
+    expect(fresh.DSH_HOME).toBe(join(homedir(), '.yunsun-edu'))
   })
 })
 

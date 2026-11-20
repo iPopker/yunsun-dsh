@@ -1,4 +1,5 @@
 import { readInstallerLocales, renderInstallerStrings } from './installer-locales.mjs'
+import { brandInstallerLocales, desktopProductName, resolveYunsunPackaging } from './yunsun-packaging.mjs'
 import { officePackageDirectories } from '../../../scripts/libreoffice-packages.mjs'
 import { X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -51,7 +52,9 @@ export function createElectronBuilderConfig(
   preparedRuntime = undefined,
   preparedRuntimeVersion = undefined,
 ) {
-  const appId = resolveDesktopAppId(env)
+  // [yunsun] 品牌打包（YUNSUN_DESKTOP_PRODUCT_NAME）用自己的 appId、产物前缀和图标；不设则 undefined，行为与上游一致。
+  const yunsun = resolveYunsunPackaging(env)
+  const appId = yunsun?.appId ?? resolveDesktopAppId(env)
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -108,7 +111,9 @@ export function createElectronBuilderConfig(
   const packaged = resolveDesktopBuildCommit(env)
   // [yunsun] 品牌：安装包/应用名默认沿用上游，打包时用环境变量换成云隼智教（安装路径、卸载项、
   // 协议名都跟着走，所以不在代码里写死，避免影响上游产物）。
-  const brandedProductName = env.YUNSUN_DESKTOP_PRODUCT_NAME?.trim() || 'DeepSeek Harness'
+  const brandedProductName = desktopProductName(env)
+  // [yunsun] 安装器文案里的产品名跟随品牌；上游构建原样返回。
+  const installerLocales = () => yunsun === undefined ? readInstallerLocales() : brandInstallerLocales(readInstallerLocales(), brandedProductName)
   return {
     appId,
     protocols: [{ name: brandedProductName, schemes: ['dsh'] }],
@@ -123,7 +128,7 @@ export function createElectronBuilderConfig(
     // The default copyright uses author.name; this line names the product instead.
     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
-    artifactName: `deepseek-harness-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+    artifactName: `${yunsun?.artifactPrefix ?? 'deepseek-harness'}-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
     electronDist: buildPaths.electron,
@@ -135,7 +140,7 @@ export function createElectronBuilderConfig(
         '-OutputDirectory', join(buildPaths.root, 'installer-ui')], {
         env: scrubWindowsSigningEnvironment(env), windowsHide: true,
       })
-      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales()), 'utf8')
+      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(installerLocales()), 'utf8')
       if (windowsSigner !== undefined) {
         await windowsSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
       }
@@ -162,19 +167,21 @@ export function createElectronBuilderConfig(
     asarUnpack: unpack,
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
-      { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
+      // [yunsun] 品牌构建用云隼图标。
+      { from: yunsun?.icons.windows ?? fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       // [yunsun] P4：YUNSUN_RESOURCES_DIR 指向 edu-agent 的 `node packages/dsh-edu/scripts/pack-yunsun-resources.mjs` 产物，原样放进 resources/yunsun。
       ...(env.YUNSUN_RESOURCES_DIR === undefined ? [] : [{ from: env.YUNSUN_RESOURCES_DIR, to: 'yunsun' }]),
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
-      ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
+      ...(packagesWindows ? [{ from: yunsun?.icons.tray ?? fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],
     mac: {
-      icon: fileURLToPath(new URL('../resources/icon-macos.png', import.meta.url)),
+      icon: yunsun?.icons.macos ?? fileURLToPath(new URL('../resources/icon-macos.png', import.meta.url)),
       category: 'public.app-category.developer-tools',
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
         CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
-        NSMicrophoneUsageDescription: 'DeepSeek Harness uses your microphone to transcribe speech into message drafts.',
+        // [yunsun] 产品名跟随品牌；上游构建文案不变。
+        NSMicrophoneUsageDescription: `${brandedProductName} uses your microphone to transcribe speech into message drafts.`,
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,
@@ -250,7 +257,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
-      icon: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)),
+      icon: yunsun?.icons.windows ?? fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)),
       forceCodeSigning: !unsigned,
       signtoolOptions: {
         sign: windowsSigner,
@@ -272,7 +279,7 @@ export function createElectronBuilderConfig(
       perMachine: false,
       allowElevation: false,
       allowToChangeInstallationDirectory: false,
-      installerLanguages: readInstallerLocales().map(locale => locale.id),
+      installerLanguages: installerLocales().map(locale => locale.id),
       differentialPackage: true,
     },
     detectUpdateChannel: false,

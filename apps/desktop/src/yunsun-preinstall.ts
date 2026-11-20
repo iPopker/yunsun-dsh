@@ -7,16 +7,22 @@
  * 运行时：
  *   1. 主进程最先执行 yunsun-packaged-init.ts，把标记换成环境变量（DSH_PRODUCT_BRAND、YUNSUN_SERVER_URL），
  *      Host 子进程继承它们；用户或开发者自己设置的环境变量优先。
+ *      同时把 DSH_HOME 指到 `~/.yunsun-edu`，会话、凭据、profile 都和上游 DeepSeek Harness 的 `~/.dsh` 分开，两个应用可以并存。
  *   2. 创建 desktop profile 之后，用内置 pnpm 离线 `pnpm add` 这个 tgz，并把它登记进 `dsh.profile.bundles`。
  *      版本没变就跳过；用户之后用插件管理器装第三方插件走原来的路径，不受影响。
  * 没有标记（上游构建、开发版）时这里的所有函数都不做事，上游测试不变。
  */
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 /** 资源目录名（相对 process.resourcesPath）。 */
 export const YUNSUN_RESOURCE_DIR = 'yunsun'
+/** [yunsun] 云隼智教构建的运行时数据目录名（位于用户 home 下），避免和上游共用 `~/.dsh`。 */
+export const YUNSUN_DSH_HOME_DIR_NAME = '.yunsun-edu'
+/** [yunsun] 云隼智教构建的 Electron userData 目录名（位于系统 appData 下），避免和上游共用单实例锁和本机偏好。 */
+export const YUNSUN_USER_DATA_DIR_NAME = 'yunsun-edu'
 /** 打包期配置文件名；存在即表示这是云隼智教构建。 */
 export const YUNSUN_CONFIG_FILE = 'yunsun.json'
 /** 预装的 bundle 包名。 */
@@ -83,10 +89,14 @@ export function readYunsunPackagedResources(resourcesPath: string | undefined): 
 /**
  * 把打包期配置变成环境变量。已有的值不覆盖，所以开发者和企业部署仍可用环境变量改。
  * 遥测开关和 `pnpm dev:dsh` 保持一致。
+ * [yunsun] DSH_HOME 默认 `~/.yunsun-edu`，与上游的 `~/.dsh` 隔离；用户已设的 DSH_HOME 优先。
+ * @param env - 要补齐的环境对象（通常是 process.env）。
+ * @param resources - 已读取并校验的打包期资源。
  */
 export function applyYunsunPackagedEnv(env: Env, resources: YunsunPackagedResources): void {
   env.DSH_PRODUCT_BRAND ??= 'yunsun'
   env.YUNSUN_SERVER_URL ??= resources.config.serverBaseUrl
+  env.DSH_HOME ??= join(homedir(), YUNSUN_DSH_HOME_DIR_NAME)
   env.DSH_TELEMETRY_DISABLED ??= '1'
   env.DSH_TELEMETRY_MODE ??= 'DISABLED'
 }
