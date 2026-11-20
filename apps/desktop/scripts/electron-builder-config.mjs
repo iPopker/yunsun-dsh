@@ -121,7 +121,9 @@ export function createElectronBuilderConfig(
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
       ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }),
-      ...buildVersion === productVersion ? {} : { version: buildVersion },
+      // [yunsun] 品牌打包可用 YUNSUN_DESKTOP_VERSION 覆盖应用版本；afterPack 校验内置运行时仍用 productVersion。
+      ...yunsun?.version !== undefined ? { version: yunsun.version }
+        : buildVersion === productVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
     },
     productName: brandedProductName,

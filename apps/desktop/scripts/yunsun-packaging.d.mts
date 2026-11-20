@@ -15,6 +15,8 @@ export interface YunsunPackagingIcons {
 export interface YunsunPackaging {
   productName: string
   appId: string
+  /** YUNSUN_DESKTOP_VERSION; undefined keeps the upstream build version. */
+  version: string | undefined
   artifactPrefix: string
   icons: YunsunPackagingIcons
 }
@@ -32,6 +34,14 @@ export function resolveYunsunPackaging(env: NodeJS.ProcessEnv): YunsunPackaging 
  * @returns The branded product name, or the upstream 'DeepSeek Harness'.
  */
 export function desktopProductName(env: NodeJS.ProcessEnv): string
+
+/**
+ * Artifact file name stem, matching electron-builder's artifactName before the os, arch and suffix.
+ * @param env - Packaging environment.
+ * @param buildVersion - Version the upstream build would publish.
+ * @returns `yunsun-edu-<version>` for branded builds, otherwise `deepseek-harness-<buildVersion>`.
+ */
+export function desktopArtifactStem(env: NodeJS.ProcessEnv, buildVersion: string): string
 
 /**
  * Replace the upstream product name in installer resources.

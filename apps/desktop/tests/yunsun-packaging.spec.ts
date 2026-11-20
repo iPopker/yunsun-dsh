@@ -1,7 +1,7 @@
 // [yunsun] 品牌打包配置的测试。
 import { describe, expect, it } from 'vitest'
 import { createElectronBuilderConfig } from '../scripts/electron-builder-config.mjs'
-import { brandInstallerLocales, desktopProductName, resolveYunsunPackaging } from '../scripts/yunsun-packaging.mjs'
+import { brandInstallerLocales, desktopArtifactStem, desktopProductName, resolveYunsunPackaging } from '../scripts/yunsun-packaging.mjs'
 
 describe('resolveYunsunPackaging', () => {
   it('未设置或只有空白时返回 undefined（上游构建）', () => {
@@ -25,6 +25,26 @@ describe('resolveYunsunPackaging', () => {
       expect(() => resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_APP_ID: appId }))
         .toThrow('yunsun packaging: YUNSUN_DESKTOP_APP_ID must be a reverse-DNS identifier')
     }
+  })
+
+  it('YUNSUN_DESKTOP_VERSION：不设为 undefined，接受 semver，拒绝非 semver 和与 DSH_DESKTOP_BUILD_VERSION 同时设置', () => {
+    expect(resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X' })?.version).toBeUndefined()
+    expect(resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: ' 3.0.0 ' })?.version).toBe('3.0.0')
+    expect(resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: '3.0.1-beta.2' })?.version).toBe('3.0.1-beta.2')
+    for (const version of ['V3.0', '3.0', '03.0.0', '3.0.0.']) {
+      expect(() => resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: version }))
+        .toThrow('yunsun packaging: YUNSUN_DESKTOP_VERSION must be a semver version')
+    }
+    expect(() => resolveYunsunPackaging({ YUNSUN_DESKTOP_PRODUCT_NAME: 'X', YUNSUN_DESKTOP_VERSION: '3.0.0', DSH_DESKTOP_BUILD_VERSION: '0.2.2-rc.3.20261121.1' }))
+      .toThrow('yunsun packaging: set YUNSUN_DESKTOP_VERSION or DSH_DESKTOP_BUILD_VERSION, not both')
+  })
+})
+
+describe('desktopArtifactStem', () => {
+  it('上游用 deepseek-harness 和构建版本；品牌用 yunsun-edu，有 YUNSUN_DESKTOP_VERSION 时用它', () => {
+    expect(desktopArtifactStem({}, '0.2.2-rc.3')).toBe('deepseek-harness-0.2.2-rc.3')
+    expect(desktopArtifactStem({ YUNSUN_DESKTOP_PRODUCT_NAME: '云隼智教' }, '0.2.2-rc.3')).toBe('yunsun-edu-0.2.2-rc.3')
+    expect(desktopArtifactStem({ YUNSUN_DESKTOP_PRODUCT_NAME: '云隼智教', YUNSUN_DESKTOP_VERSION: '3.0.0' }, '0.2.2-rc.3')).toBe('yunsun-edu-3.0.0')
   })
 })
 
@@ -60,6 +80,12 @@ describe('createElectronBuilderConfig', () => {
     expect(config.artifactName).toMatch(/^yunsun-edu-/u)
     expect(config.mac.icon).toMatch(/resources[\\/]yunsun[\\/]icon-macos\.png$/u)
     expect(config.mac.extendInfo.NSMicrophoneUsageDescription).toBe('云隼智教 uses your microphone to transcribe speech into message drafts.')
+    expect(config.extraMetadata.version).toBeUndefined()
+  })
+
+  it('品牌环境设置 YUNSUN_DESKTOP_VERSION 时覆盖打包后的应用版本', () => {
+    const config = createElectronBuilderConfig({ ...base, YUNSUN_DESKTOP_PRODUCT_NAME: '云隼智教', YUNSUN_DESKTOP_VERSION: '3.0.0' }, 'darwin', 'arm64')
+    expect(config.extraMetadata.version).toBe('3.0.0')
   })
 
   it('不设品牌环境变量时保持上游原值', () => {
