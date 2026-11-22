@@ -12,6 +12,7 @@ import {
   YUNSUN_PREINSTALL_STATE_FILE,
   type YunsunPackagedResources,
 } from '../src/yunsun-preinstall.ts'
+import { DSH_VERSION, fakePnpm } from './yunsun-test-support.ts'
 
 const roots: string[] = []
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }) })
@@ -88,34 +89,39 @@ describe('yunsun packaged config', () => {
 })
 
 describe('preinstallYunsunBundle', () => {
-  it('复制 tgz、离线 pnpm add、登记 bundle、写状态；第二次跳过', async () => {
+  it('复制 tgz、离线 pnpm add、登记 bundle、写状态和 startup.json；第二次跳过', async () => {
     const root = temporaryRoot()
     const resources = readYunsunPackagedResources(resourcesDir(root)) as YunsunPackagedResources
     const dir = profile(root)
     const calls: { args: readonly string[]; cwd: string }[] = []
-    const runPnpm = (args: readonly string[], cwd: string): Promise<void> => { calls.push({ args, cwd }); return Promise.resolve() }
-    expect(await preinstallYunsunBundle({ profileDir: dir, resources, runPnpm })).toBe('installed')
+    const runPnpm = fakePnpm(calls)
+    expect(await preinstallYunsunBundle({ profileDir: dir, resources, runPnpm, dshVersion: DSH_VERSION })).toBe('installed')
     expect(calls).toEqual([{ args: ['add', `./yunsun-packages/${config.bundle.file}`, '--offline', '--ignore-scripts'], cwd: dir }])
     expect(existsSync(join(dir, 'yunsun-packages', config.bundle.file))).toBe(true)
     const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dsh: { profile: { bundles: string[] } } }
     expect(manifest.dsh.profile.bundles).toEqual(['@deepseek-ai/dsh-base', '@yunsun/dsh-edu'])
-    expect(await preinstallYunsunBundle({ profileDir: dir, resources, runPnpm })).toBe('current')
+    expect(JSON.parse(readFileSync(join(dir, YUNSUN_PREINSTALL_STATE_FILE), 'utf8'))).toEqual({ bundle: '@yunsun/dsh-edu', version: config.bundle.version })
+    const startup = JSON.parse(readFileSync(join(dir, 'yunsun-updates', 'startup.json'), 'utf8')) as Record<string, unknown>
+    expect(startup).toMatchObject({ version: config.bundle.version, previousFile: null })
+    expect(await preinstallYunsunBundle({ profileDir: dir, resources, runPnpm, dshVersion: DSH_VERSION })).toBe('current')
     expect(calls).toHaveLength(1)
   })
 
-  it('版本变化时重新安装，且不重复登记', async () => {
+  it('版本变化时重新安装，previousFile 指向旧版 tgz，且不重复登记', async () => {
     const root = temporaryRoot()
     const dir = profile(root)
-    let count = 0
-    const runPnpm = (): Promise<void> => { count += 1; return Promise.resolve() }
+    const calls: { args: readonly string[]; cwd: string }[] = []
+    const runPnpm = fakePnpm(calls)
     const first = readYunsunPackagedResources(resourcesDir(root)) as YunsunPackagedResources
-    await preinstallYunsunBundle({ profileDir: dir, resources: first, runPnpm })
-    const next = { ...config, bundle: { ...config.bundle, version: '0.0.0-build.2' } }
-    const second = readYunsunPackagedResources(resourcesDir(root, next)) as YunsunPackagedResources
-    expect(await preinstallYunsunBundle({ profileDir: dir, resources: second, runPnpm })).toBe('installed')
-    expect(count).toBe(2)
+    await preinstallYunsunBundle({ profileDir: dir, resources: first, runPnpm, dshVersion: DSH_VERSION })
+    const next = { ...config, bundle: { ...config.bundle, version: '0.0.0-build.2', file: 'yunsun-dsh-edu-0.0.0-build.2.tgz' } }
+    writeFileSync(join(root, 'resources', 'yunsun', next.bundle.file), 'tgz')
+    const second = readYunsunPackagedResources(resourcesDir(root, next, false)) as YunsunPackagedResources
+    expect(await preinstallYunsunBundle({ profileDir: dir, resources: second, runPnpm, dshVersion: DSH_VERSION })).toBe('installed')
+    expect(calls).toHaveLength(2)
     const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dsh: { profile: { bundles: string[] } } }
     expect(manifest.dsh.profile.bundles.filter(name => name === '@yunsun/dsh-edu')).toHaveLength(1)
+    expect(JSON.parse(readFileSync(join(dir, 'yunsun-updates', 'startup.json'), 'utf8'))).toMatchObject({ version: '0.0.0-build.2', previousFile: config.bundle.file })
   })
 
   it('pnpm 失败时抛出，不写状态也不登记', async () => {
@@ -123,7 +129,7 @@ describe('preinstallYunsunBundle', () => {
     const resources = readYunsunPackagedResources(resourcesDir(root)) as YunsunPackagedResources
     const dir = profile(root)
     const runPnpm = (): Promise<void> => Promise.reject(new Error('offline tarball missing'))
-    await expect(preinstallYunsunBundle({ profileDir: dir, resources, runPnpm })).rejects.toThrow('offline tarball missing')
+    await expect(preinstallYunsunBundle({ profileDir: dir, resources, runPnpm, dshVersion: DSH_VERSION })).rejects.toThrow('offline tarball missing')
     expect(existsSync(join(dir, YUNSUN_PREINSTALL_STATE_FILE))).toBe(false)
     expect(readFileSync(join(dir, 'package.json'), 'utf8')).not.toContain('@yunsun/dsh-edu')
   })

@@ -14,7 +14,7 @@ import {
   writeSync,
 } from 'node:fs'
 import { execFile } from 'node:child_process'
-import { delimiter, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import {
   DESKTOP_HOST_PACKAGE,
@@ -112,7 +112,11 @@ export class DesktopProjectManager {
       }
     }
     await this.withLock(async () => {
-      const result = await preinstallYunsunBundle({ profileDir: this.paths.profile, resources, runPnpm })
+      // [yunsun] P4：dshVersion 用于已装版本的 engines.dsh 判断和 staged 清单校验；dshHome 是 profile 的上两级（paths.ts）。
+      const dshVersion = readDesktopRuntime(this.runtime.dsh).release.version
+      const result = await preinstallYunsunBundle({
+        profileDir: this.paths.profile, resources, runPnpm, dshVersion, dshHome: dirname(dirname(this.paths.profile)),
+      })
       console.info('yunsun preinstall:', result, resources.config.bundle.version)
     })
   }

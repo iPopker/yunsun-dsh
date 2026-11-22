@@ -1,0 +1,19 @@
+{
+  "_note": "复制自 edu-agent 的 packages/dsh-edu/scripts/test/hot-update-vector.json（ADR 0043 交叉测试向量），去掉了测试私钥；只用于验签。",
+  "publicKeys": {
+    "test-key-1": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAeBfM6enjYxzhOM4DdsYB87rBg6UQesK+VCJvgelK9R0=\n-----END PUBLIC KEY-----\n"
+  },
+  "manifest": {
+    "schemaVersion": 1,
+    "name": "@yunsun/dsh-edu",
+    "version": "0.0.0-build.20261122080000",
+    "dshVersion": "0.2.2-rc.3",
+    "file": "yunsun-dsh-edu-0.0.0-build.20261122080000.tgz",
+    "sha256": "abababababababababababababababababababababababababababababababab",
+    "size": 12345678,
+    "keyId": "test-key-1",
+    "expiresAt": "2026-12-22T08:00:00.000Z"
+  },
+  "canonical": "{\"dshVersion\":\"0.2.2-rc.3\",\"expiresAt\":\"2026-12-22T08:00:00.000Z\",\"file\":\"yunsun-dsh-edu-0.0.0-build.20261122080000.tgz\",\"keyId\":\"test-key-1\",\"name\":\"@yunsun/dsh-edu\",\"schemaVersion\":1,\"sha256\":\"abababababababababababababababababababababababababababababababab\",\"size\":12345678,\"version\":\"0.0.0-build.20261122080000\"}",
+  "signature": "K88B+1yZ7CwL9aMSUReQpXHqsFLtip8Xl2BWkRUF+XC04J/NF6HLVm3MmbcPOkcEQM9PiEzXUl9gOyP+tmOBCA=="
+}
