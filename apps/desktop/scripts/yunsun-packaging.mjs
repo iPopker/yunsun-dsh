@@ -59,6 +59,16 @@ export function desktopArtifactStem(env, buildVersion) {
   return `${yunsun.artifactPrefix}-${yunsun.version ?? buildVersion}`
 }
 
+/**
+ * [yunsun] P2: whether this packaging run is a Yunsun build, which never carries an update feed or a mandatory-update policy.
+ * A build is Yunsun when branded packaging is on or the Yunsun resources directory is bundled (its yunsun.json is the runtime marker).
+ * @param {NodeJS.ProcessEnv} env - Packaging environment.
+ * @returns {boolean} True when update configuration must be neither resolved, validated, nor embedded.
+ */
+export function yunsunUpdatesDisabledForPackaging(env) {
+  return resolveYunsunPackaging(env) !== undefined || env.YUNSUN_RESOURCES_DIR !== undefined
+}
+
 function escapeRegExp(text) {
   return text.replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&')
 }

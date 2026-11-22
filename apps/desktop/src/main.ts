@@ -42,6 +42,9 @@ import { readDeviceInfo } from './device-info.ts'
 import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
 import type { DesktopMessages } from './locale.ts'
 import { productName, yunsunBrandEnabled } from './yunsun-brand.ts'
+// [yunsun] P2：云隼构建关闭整包更新和强制更新策略。
+import { yunsunCoordinatorEnabled, yunsunMandatoryPolicyInput, yunsunUpdatesDisabled } from './yunsun-updates.ts'
+import { yunsunUpdatesDisabledArguments } from './yunsun-updates-argument.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -76,6 +79,8 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 
+// [yunsun] P2：由打包进应用的 yunsun.json 判定，不看 DSH_PRODUCT_BRAND（它会被外部环境变量覆盖）。
+const yunsunNoUpdates = yunsunUpdatesDisabled((process as { resourcesPath?: string }).resourcesPath)
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => { await stopOperationReports() }
 let shuttingDown = false
@@ -299,6 +304,8 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
       webSecurity: true,
       webviewTag: primary,
       devTools: true,
+      // [yunsun] P2：preload 据此不暴露 dshDesktop.updates，页面不注册更新界面。
+      additionalArguments: yunsunUpdatesDisabledArguments(yunsunNoUpdates),
     },
   })
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -763,7 +770,8 @@ async function main(): Promise<void> {
       }
       return true
     },
-    undefined, undefined, undefined,
+    // [yunsun] P2：enabled 恒为 false，协调器不会调用 autoUpdater.checkForUpdates。
+    undefined, yunsunCoordinatorEnabled(yunsunNoUpdates), undefined,
     (success, reason) => { void track('desktop_upgrade_download_result', { is_success: success, ...reason === undefined ? {} : { error_reason: reason } }) },
     updateChannel,
   )
@@ -1151,6 +1159,7 @@ async function main(): Promise<void> {
   }
 
   const automaticCheck = (): void => {
+    if (yunsunNoUpdates) return // [yunsun] P2：不查强制策略，也不轮询更新源。
     if (!quitting) void mandatoryPolicy?.check('foreground-or-resume').catch((error: unknown) => { console.error(error) })
     if (!quitting) void updateSchedule.check().catch((error: unknown) => { console.error(error) })
   }
@@ -1213,8 +1222,11 @@ async function main(): Promise<void> {
       ? { label: currentDesktopLocale().messages.aboutMenu,
         click: () => { void showAbout().catch((error: unknown) => { console.error(error) }) } }
       : { label: currentDesktopLocale().messages.aboutMenu, role: 'about' },
-    { type: 'separator' },
-    { label: currentDesktopLocale().messages.checkUpdatesMenu, click: () => { void openUpdatePrompt(true) } },
+    // [yunsun] P2：云隼构建不显示「检查更新」（分隔线一起去掉，避免菜单里出现两条连续分隔线）。
+    ...yunsunNoUpdates ? [] : [
+      { type: 'separator' as const },
+      { label: currentDesktopLocale().messages.checkUpdatesMenu, click: () => { void openUpdatePrompt(true) } },
+    ],
     // [yunsun] 品牌模式不暴露「管理 dsh 命令…」：老师用不到 dsh 命令行，菜单里只留产品名。
     ...(process.platform === 'darwin' || process.platform === 'win32') && !yunsunBrandEnabled()
       ? [{ label: currentDesktopLocale().messages.cliCommandMenu, click: () => { void commandManager.show() } }] : [],
@@ -1558,7 +1570,8 @@ async function main(): Promise<void> {
   const policyInput: unknown = app.isPackaged
     ? ('dshMandatoryUpdatePolicy' in manifest ? manifest.dshMandatoryUpdatePolicy : undefined)
     : developmentPolicy === undefined ? undefined : JSON.parse(developmentPolicy) as unknown
-  const policyConfig = resolveDesktopPolicyConfig(policyInput, !app.isPackaged)
+  // [yunsun] P2：云隼构建没有强制更新策略，不会创建策略和策略窗口。
+  const policyConfig = resolveDesktopPolicyConfig(yunsunMandatoryPolicyInput(yunsunNoUpdates, policyInput), !app.isPackaged)
   if (policyConfig !== undefined) {
     if (policyConfig.authentication === 'feishu-test') {
       policyAuth = new DesktopPolicyTestAuth(policyConfig.origin, policyConfig.allowedAuthOrigins, locale,

@@ -44,6 +44,13 @@ export function desktopProductName(env: NodeJS.ProcessEnv): string
 export function desktopArtifactStem(env: NodeJS.ProcessEnv, buildVersion: string): string
 
 /**
+ * [yunsun] P2: whether this packaging run is a Yunsun build, which never carries an update feed or a mandatory-update policy.
+ * @param env - Packaging environment.
+ * @returns True when update configuration must be neither resolved, validated, nor embedded.
+ */
+export function yunsunUpdatesDisabledForPackaging(env: NodeJS.ProcessEnv): boolean
+
+/**
  * Replace the upstream product name in installer resources.
  * @param locales - Installer locales; not modified.
  * @param productName - Branded product name.

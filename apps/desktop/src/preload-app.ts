@@ -11,9 +11,13 @@ import { syncNativeTheme } from './preload-theme.ts'
 import { syncWindowsAppearance } from './preload-windows.ts'
 import { installMandatoryUpdateOverlay } from './preload-mandatory-overlay.ts'
 import { createDesktopBrowserBridge } from './preload-browser.ts'
+import { yunsunUpdatesBridgeExposed } from './yunsun-updates-argument.ts'
 import type { FileDragHandle } from '@deepseek-ai/dsh-util-file-drag'
 
-function createProductApi(): DshDesktopProductApi {
+// [yunsun] P2：云隼构建不暴露 updates；上游类型 DshDesktopProductApi 保持不变。
+type ProductApi = Omit<DshDesktopProductApi, 'updates'> & Partial<Pick<DshDesktopProductApi, 'updates'>>
+
+function createProductApi(): ProductApi {
   return {
     protocolVersion: 1,
     fileActions: {
@@ -65,7 +69,8 @@ function createProductApi(): DshDesktopProductApi {
         return () => { ipcRenderer.off(DESKTOP_IPC.shortcutsChanged, handle) }
       },
     },
-    updates: {
+    // [yunsun] P2：云隼构建不暴露 updates，ui-settings-general 找不到它就不注册更新界面。
+    ...yunsunUpdatesBridgeExposed(process.argv) ? { updates: {
       channels: {
         get: () => ipcRenderer.invoke(DESKTOP_IPC.updatesChannelGet) as Promise<DesktopChannelState>,
         set: channel => ipcRenderer.invoke(DESKTOP_IPC.updatesChannelSet, channel) as Promise<DesktopChannelChangeResult>,
@@ -82,7 +87,7 @@ function createProductApi(): DshDesktopProductApi {
         ipcRenderer.on(DESKTOP_IPC.updatesPresentation, handle)
         return () => { ipcRenderer.off(DESKTOP_IPC.updatesPresentation, handle) }
       },
-    },
+    } } : {},
   }
 }
 
